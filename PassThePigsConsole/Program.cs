@@ -36,9 +36,12 @@ namespace PassThePigsConsole
         static Boolean human;
 
         //Governs which decision making process is used by the AI
+        //String for describing the logic used
         static int p1AI, p2AI;
+        static string aiDesc;
 
         //Log mode - 0 for basic, 1 for full.
+        //Basic keeps track of scores and turns. Full does this, and also logs the rule by which the CPU decided to roll or not.
         static int logMode;
 
         //Signal Game Over
@@ -57,6 +60,7 @@ namespace PassThePigsConsole
         //Store the Pig positions as strings on rolling.
         static String oneString, twoString;
 
+        //Entry method for app. Pass a '1' to the program to play Human vs CPU, else CPU v CPU
         static void Main(string[] args)
         {
             //Check for commandline argument
@@ -86,15 +90,15 @@ namespace PassThePigsConsole
                     //Increment turn count
                     turnCount++;
                     //Display game info
-                    Trace.WriteLine("#Beginning Turn " + turnCount + "#\n");
-                    Trace.WriteLine(player1.name + ": Total Score is " + player1.totalScore + " after " + p1RollCount + " rolls\n");
-                    Trace.WriteLine(player2.name + ": Total Score is " + player2.totalScore + " after " + p2RollCount + " rolls\n");
+                    Trace.WriteLine("       ##### Beginning Turn " + turnCount + " #####\n");
+                    Trace.WriteLine("##" + player1.name + ": Total Score is " + player1.totalScore + " after " + p1RollCount + " rolls ##\n");
+                    Trace.WriteLine("##" + player2.name + ": Total Score is " + player2.totalScore + " after " + p2RollCount + " rolls ##\n");
 
                     //While CPU0 is in control
                     #region CPU0
                     if (!human)
                     {
-
+                        Trace.WriteLine("\n");
                         while (current == player1)
                         {
                             Boolean roll;
@@ -154,6 +158,7 @@ namespace PassThePigsConsole
                     #region human                           
                     else
                     {
+                        Trace.WriteLine("\n");
                         while (current == player1) {
                             Boolean roll;
                             //roll = rollDecisionBasic();
@@ -205,7 +210,7 @@ namespace PassThePigsConsole
                     //While player is in control
                     while (current == player2)
                     {
-
+                        Trace.WriteLine("\n");
                         Boolean roll;
                         //roll = rollDecisionBasic();
 
@@ -370,8 +375,7 @@ namespace PassThePigsConsole
         }
 
         //Series of boolean methods that return true if the CPU should roll, false if they shouldn't.
-
-        //'Classic' methods; "What is our score, what is the opponent's"
+        //Each is a series of If checks, and will return if, at any stage, the condition in question is satisfied.
 
         //'Basic' method; Well-rounded, and the most consistent.
         //Falls back on the 'stop at 23 rule', as per Gorman's paper 'Analytics, Pedagogy and the Pass the Pigs Game'.
@@ -396,7 +400,7 @@ namespace PassThePigsConsole
 
 
             if (cpuTurn<1){
-                Trace.WriteLine(current.name + ": Rolling because haven't rolled yet.\n");
+                Trace.WriteLine(current.name + ": Rolling because haven't rolled yet this turn. \n");
                 return true;
             }
          
