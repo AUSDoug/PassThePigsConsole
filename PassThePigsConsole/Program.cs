@@ -1,6 +1,7 @@
 ﻿using System;
 //To more easily perform some file operations.
 using IO = System.IO;
+//BlueRaja's Weighted Randomizer package: https://github.com/BlueRaja/Weighted-Item-Randomizer-for-C-Sharp
 using Weighted_Randomizer;
 using System.Diagnostics;
 
@@ -9,11 +10,11 @@ using System.Diagnostics;
 
 //Title:  'Pass the Pigs'
 //Author: Douglas John Spangenberg
-//Date:   13th March, 2016
+//Date:   26th September 2019
 
-//Description: An AI vs. AI implementation of Pass the Pigs
-//             A personal self-learning exercise of sorts, this will
-//             initially function by way of a series of if-else statements.
+//Description: A C# console-based implementation of Hasbro's 'Pass The Pigs'
+//Weighted odds for Pig combinations, three AI rule-sets, minimal or verbose logging
+//Easy implementation of custom AI rule-sets to come in the future.
 #endregion
 
 namespace PassThePigsConsole
