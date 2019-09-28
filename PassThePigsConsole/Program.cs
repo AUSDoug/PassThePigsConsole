@@ -43,7 +43,7 @@ namespace PassThePigsConsole
 
         //Log mode - 0 for basic, 1 for full.
         //Basic keeps track of scores and turns. Full does this, and also logs the rule by which the CPU decided to roll or not.
-        static int logMode;
+        static Boolean logMode;
 
         //Signal Game Over
         static Boolean gameOver = false;
@@ -108,7 +108,8 @@ namespace PassThePigsConsole
                             //Decide to roll or not.
                             if (p1AI == 0)
                             {
-                                roll = rollDecisionBasic();
+                                roll = AIRules.basic(logMode, player1.totalScore, player1.turnScore, player2.totalScore);
+                                //roll = rollDecisionBasic();
                             }
                             else if (p1AI == 1)
                             {
@@ -378,6 +379,7 @@ namespace PassThePigsConsole
         //Series of boolean methods that return true if the CPU should roll, false if they shouldn't.
         //Each is a series of If checks, and will return if, at any stage, the condition in question is satisfied.
 
+        
         //'Basic' method; Well-rounded, and the most consistent.
         //Falls back on the 'stop at 23 rule', as per Gorman's paper 'Analytics, Pedagogy and the Pass the Pigs Game'.
         public static Boolean rollDecisionBasic()

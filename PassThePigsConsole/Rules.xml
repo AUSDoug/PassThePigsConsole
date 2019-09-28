@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<GraphicsConfig>
+<!-- Always roll, for whatever reason (Start of turn, well behind etc) -->
+    <Rule name="Roll">
+		<RuleIndex>0</RuleIndex>
+		<Final>1</Final>
+    </Rule>
+	<Rule name="">
+	</Rule>
+</GraphicsConfig>
