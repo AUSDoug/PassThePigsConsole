@@ -4,6 +4,7 @@ using IO = System.IO;
 //BlueRaja's Weighted Randomizer package: https://github.com/BlueRaja/Weighted-Item-Randomizer-for-C-Sharp
 using Weighted_Randomizer;
 using System.Diagnostics;
+using IronPython.Hosting;
 
 
 #region Info
@@ -36,14 +37,13 @@ namespace PassThePigsConsole
         //True if human is playing.
         static Boolean human;
 
-        //Governs which decision making process is used by the AI
-        //String for describing the logic used
+        //Each AI player has an Int assigned to them.
+        //The value of the Int governs which ruleset is used
         static int p1AI, p2AI;
-        static string aiDesc;
 
         //Log mode - 0 for basic, 1 for full.
         //Basic keeps track of scores and turns. Full does this, and also logs the rule by which the CPU decided to roll or not.
-        static Boolean logMode;
+        static int logMode;
 
         //Signal Game Over
         static Boolean gameOver = false;
@@ -108,8 +108,7 @@ namespace PassThePigsConsole
                             //Decide to roll or not.
                             if (p1AI == 0)
                             {
-                                roll = AIRules.basic(logMode, player1.totalScore, player1.turnScore, player2.totalScore);
-                                //roll = rollDecisionBasic();
+                                roll = AIRules.basic(logMode, player1.name, player1.totalScore, player1.turnScore, player2.totalScore);
                             }
                             else if (p1AI == 1)
                             {
@@ -121,7 +120,7 @@ namespace PassThePigsConsole
                             }
                             else
                             {
-                                roll = rollDecisionBasic();
+                                roll = AIRules.basic(logMode, player1.name, player1.totalScore, player1.turnScore, player2.totalScore);
                             }
                             //If we roll
                             if (roll)
@@ -219,7 +218,7 @@ namespace PassThePigsConsole
                         //Decide to roll or not.
                         if (p2AI == 0)
                         {
-                            roll = rollDecisionBasic();
+                            roll = AIRules.basic(logMode, player2.name, player2.totalScore, player2.turnScore, player1.totalScore);
                         }
                         else if (p2AI == 1)
                         {
@@ -231,7 +230,7 @@ namespace PassThePigsConsole
                         }
                         else
                         {
-                            roll = rollDecisionBasic();
+                            roll = AIRules.basic(logMode, player1.name, player1.totalScore, player1.turnScore, player2.totalScore);
                         }
                         //If we roll
                         if (roll)
@@ -239,7 +238,7 @@ namespace PassThePigsConsole
                             //Increment roll count
                             p2RollCount++;
                             if (logMode == 1)
-                                Trace.WriteLine(current.name + ": CPU 0 is Rolling\n");
+                                Trace.WriteLine(current.name + ": CPU 1 is Rolling\n");
                             //Roll
                             rollControl();
                         }
@@ -289,14 +288,17 @@ namespace PassThePigsConsole
 
         public static void pigInitialiser()
         {
-            //Create both players
+            //Create our players
+            //If a Human is playing, he/she will be P1
             if (human)
             {
                 player1 = new Player("Human");
             }
             else
-                player1 = new Player("CPU 0");
-            player2 = new Player("CPU 1");
+            {
+                player1 = new Player("CPU 0", p1AI);
+            }
+            player2 = new Player("CPU 1", p2AI);
 
             //cpu0 can go first for this game; Winner should go first for all subsequent games
             current = player1;
@@ -382,123 +384,7 @@ namespace PassThePigsConsole
         
         //'Basic' method; Well-rounded, and the most consistent.
         //Falls back on the 'stop at 23 rule', as per Gorman's paper 'Analytics, Pedagogy and the Pass the Pigs Game'.
-        public static Boolean rollDecisionBasic()
-        {
-            //My total, my turn total, my opponent's total
-            int cpuTotal, cpuTurn, opponentTotal;
-
-            //Depending on which CPU is in control
-            if (current == player1)
-            {
-                cpuTotal = current.totalScore;
-                cpuTurn = current.turnScore;
-                opponentTotal = player2.totalScore;
-            }
-            else
-            {
-                cpuTotal = current.totalScore;
-                cpuTurn = current.turnScore;
-                opponentTotal = player1.totalScore;
-            }
-
-
-            if (cpuTurn<1){
-                Trace.WriteLine(current.name + ": Rolling because haven't rolled yet this turn. \n");
-                return true;
-            }
-         
-
-            if (cpuTurn + cpuTotal > 90 && cpuTurn <= 30)
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Rolling, because I'm about to win and it isn't pushing my luck.\n");
-                }
-                return true;
-            }
-
-            //If we think the human is about to win.
-            if (opponentTotal >= 90 && ((cpuTotal + cpuTurn) <= 90))
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Rolling because Opponenent is closing in on a win.\n");
-                }
-                return true;
-            }
-            //If we're nearly at the win, and have a buffer, don't be greedy.
-            if (cpuTurn > 0 && cpuTotal >= 90 && opponentTotal <= 50)
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Not rolling because I'm not greedy; Opponent is a long way behind, and I am close to winning.\n");
-                }
-                return false;
-            }
-            //Never get greedy
-            if (cpuTurn >= 60)
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Not pushing my luck after scoring 60+ on this turn.\n");
-                }
-                return false;
-            }
-            //If the CPU is on Thirty (30) or greater for this, be content with that UNLESS the human is at Seventy-Six (76) or above AND the CPU is below 50.
-            if ((cpuTurn > 29) && (opponentTotal < 76) && (cpuTotal < 50))
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Not rolling; Had a good run here, opponent isn't too far ahead.\n");
-                }
-                return false;
-            }
-            //If the CPU total is Zero (0) and, on this turn, they have amassed at least fiteen (15) points, don't roll.
-            if ((cpuTotal == 0) && (cpuTurn > 14))
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Not rolling, because I want to get off the mark.\n");
-                }
-                return false;
-            }
-            //Easy decision; If opponent is ahead by cpuTurn+25, we will roll.
-            if ((opponentTotal - cpuTotal) >= (cpuTurn + 25))
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Rolling because, if I Pass now, Opponent will be ahead by at least Twenty Five.\n");
-                }
-                return true;
-            }
-            if (((cpuTotal + cpuTurn) > opponentTotal) && (cpuTotal > 0 && opponentTotal > 0) && cpuTurn > 0)
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Not rolling after exhausting the other options, because I'll be ahead.\n");
-                }
-                return false;
-            }
-            if (cpuTurn > 23)
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Exhausted other reasons, am not rolling because I've reached 23.\n");
-                }
-                return false;
-            }
-            else
-            {
-                if (logMode == 1)
-                {
-                    Trace.WriteLine(current.name + ": Exhausted other reasons, am rolling because I've not reached 23.\n");
-                }
-                return true;
-            }
-            
-            
-        }
-
+        
         //lolSoRandom
         public static Boolean rollDecisionRandom()
         {
@@ -537,6 +423,26 @@ namespace PassThePigsConsole
                 Trace.WriteLine(current.name + ": Am rolling because " + x + "(Random)\n");
                 return true;
             }
+        }
+
+        public static Boolean rollDecisionExternal()
+        {
+            Boolean result=false;
+            var py = Python.CreateRuntime();
+            try
+            {
+               dynamic rule = py.UseFile("AI_Test.py");
+               result=rule.testRule();
+               Trace.WriteLine("Ran python script - Resulting in " + result + "\n");
+            }
+            catch(Exception e)
+            {
+                Trace.WriteLine("Exception error when firing custom AI Rule");
+                Trace.WriteLine(e.ToString());
+                Trace.WriteLine("Ending game");
+                gameOver = true;
+            }
+            return result;
         }
 
         //Agressive thought process that loves to roll
