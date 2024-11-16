@@ -108,8 +108,8 @@ namespace PassThePigsConsole
                             //Decide to roll or not.
                             if (p1AI == 0)
                             {
-                                roll = AIRules.basic(logMode, player1.totalScore, player1.turnScore, player2.totalScore);
-                                //roll = rollDecisionBasic();
+                                //roll = AIRules.basic(logMode, player1.totalScore, player1.turnScore, player2.totalScore);
+                                roll = rollDecisionBasic();
                             }
                             else if (p1AI == 1)
                             {
@@ -128,7 +128,7 @@ namespace PassThePigsConsole
                             {
                                 //Increment roll count
                                 p1RollCount++;
-                                if (logMode == 1)
+                                if (logMode == true)
                                     Trace.WriteLine(current.name + ": CPU 0 is Rolling\n");
                                 //Roll
                                 rollControl();
@@ -179,7 +179,7 @@ namespace PassThePigsConsole
                             {
                                 //Increment roll count
                                 p1RollCount++;
-                                if (logMode == 1)
+                                if (logMode == true)
                                     Trace.WriteLine(current.name + ": is Rolling\n");
                                 //Roll
                                 rollControl();
@@ -238,7 +238,7 @@ namespace PassThePigsConsole
                         {
                             //Increment roll count
                             p2RollCount++;
-                            if (logMode == 1)
+                            if (logMode == true)
                                 Trace.WriteLine(current.name + ": CPU 0 is Rolling\n");
                             //Roll
                             rollControl();
@@ -332,7 +332,7 @@ namespace PassThePigsConsole
                 Trace.WriteLine("CPU 0 AI initialised to " + p1AI + "\n");
                 int.TryParse(INIFile.ReadValue("Settings", "CPU 1 AI", appPath + "/Settings.ini"), out p2AI);
                 Trace.WriteLine("CPU 1 AI initialised to " + p2AI + "\n");
-                int.TryParse(INIFile.ReadValue("Settings", "Log Mode", appPath + "/Settings.ini"), out logMode);
+                bool.TryParse(INIFile.ReadValue("Settings", "Log Mode", appPath + "/Settings.ini"), out logMode);
                 Trace.WriteLine("Log Mode initialised to " + logMode+ "\n");
             }
             else
@@ -345,7 +345,7 @@ namespace PassThePigsConsole
                 gamesInt = 1;
                 p1AI = 0;
                 p2AI = 0;
-                logMode = 0;
+                logMode = false;
                 Trace.WriteLine("Options set to default values\n");
 
             }
@@ -358,7 +358,7 @@ namespace PassThePigsConsole
         {
             int x;
             x = roller();
-            if (logMode == 1)
+            if (logMode == true)
                 Trace.WriteLine(current.name + ": Rolled " + oneString + " & " + twoString + ", resulting in a score of: " + x+ "\n");
 
             //Pig Out, turn score to 0
@@ -410,7 +410,7 @@ namespace PassThePigsConsole
 
             if (cpuTurn + cpuTotal > 90 && cpuTurn <= 30)
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Rolling, because I'm about to win and it isn't pushing my luck.\n");
                 }
@@ -420,7 +420,7 @@ namespace PassThePigsConsole
             //If we think the human is about to win.
             if (opponentTotal >= 90 && ((cpuTotal + cpuTurn) <= 90))
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Rolling because Opponenent is closing in on a win.\n");
                 }
@@ -429,7 +429,7 @@ namespace PassThePigsConsole
             //If we're nearly at the win, and have a buffer, don't be greedy.
             if (cpuTurn > 0 && cpuTotal >= 90 && opponentTotal <= 50)
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Not rolling because I'm not greedy; Opponent is a long way behind, and I am close to winning.\n");
                 }
@@ -438,7 +438,7 @@ namespace PassThePigsConsole
             //Never get greedy
             if (cpuTurn >= 60)
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Not pushing my luck after scoring 60+ on this turn.\n");
                 }
@@ -447,7 +447,7 @@ namespace PassThePigsConsole
             //If the CPU is on Thirty (30) or greater for this, be content with that UNLESS the human is at Seventy-Six (76) or above AND the CPU is below 50.
             if ((cpuTurn > 29) && (opponentTotal < 76) && (cpuTotal < 50))
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Not rolling; Had a good run here, opponent isn't too far ahead.\n");
                 }
@@ -456,7 +456,7 @@ namespace PassThePigsConsole
             //If the CPU total is Zero (0) and, on this turn, they have amassed at least fiteen (15) points, don't roll.
             if ((cpuTotal == 0) && (cpuTurn > 14))
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Not rolling, because I want to get off the mark.\n");
                 }
@@ -465,7 +465,7 @@ namespace PassThePigsConsole
             //Easy decision; If opponent is ahead by cpuTurn+25, we will roll.
             if ((opponentTotal - cpuTotal) >= (cpuTurn + 25))
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Rolling because, if I Pass now, Opponent will be ahead by at least Twenty Five.\n");
                 }
@@ -473,7 +473,7 @@ namespace PassThePigsConsole
             }
             if (((cpuTotal + cpuTurn) > opponentTotal) && (cpuTotal > 0 && opponentTotal > 0) && cpuTurn > 0)
             {
-                if (logMode == 1)
+                if (logMode ==  true)
                 {
                     Trace.WriteLine(current.name + ": Not rolling after exhausting the other options, because I'll be ahead.\n");
                 }
@@ -481,7 +481,7 @@ namespace PassThePigsConsole
             }
             if (cpuTurn > 23)
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Exhausted other reasons, am not rolling because I've reached 23.\n");
                 }
@@ -489,7 +489,7 @@ namespace PassThePigsConsole
             }
             else
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Exhausted other reasons, am rolling because I've not reached 23.\n");
                 }
@@ -520,7 +520,7 @@ namespace PassThePigsConsole
             //If I have reached or exceeded 100, no need to roll.
             if (cpuTotal + cpuTurn >= 100)
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Not rolling because I've won.\n");
                 }
@@ -562,7 +562,7 @@ namespace PassThePigsConsole
             //If I have reached or exceeded 100, no need to roll.
             if (cpuTotal + cpuTurn >= 100)
             {
-                if (logMode == 1)
+                if (logMode == true)
                 {
                     Trace.WriteLine(current.name + ": Not rolling because I've won.\n");
                 }
