@@ -61,19 +61,35 @@ namespace PassThePigsConsole
         //Store the Pig positions as strings on rolling.
         static String oneString, twoString;
 
-        //Entry method for app. Pass a '1' to the program to play Human vs CPU, else CPU v CPU
+        //Entry method for app. Displays a pop-up at start to choose Human vs AI, or AI vs AI.
+        [STAThread]
         static void Main(string[] args)
         {
-            //Check for commandline argument
-            if (args.Length > 0 && args[0].Equals("1"))
+            //Prompt the user to select the game mode via pop-up window.
+            human = GameModeSelector.PromptForHumanMode();
+            if (human)
             {
-                human = true;
                 Trace.WriteLine("Human Mode detected");
             }
             //Setup logging of the console
             consoleLogger();         
             //Run the .ini loader
             iniLoader();
+            //If AI vs AI, let the user configure the match via a second pop-up.
+            //The .ini values are used as the defaults; pressing 'Start' overrides them.
+            if (!human)
+            {
+                AiGameConfig aiConfig = GameModeSelector.PromptForAiConfig(p1AI, p2AI, gamesInt, logMode);
+                if (aiConfig != null)
+                {
+                    p1AI = aiConfig.Player1AI;
+                    p2AI = aiConfig.Player2AI;
+                    gamesInt = aiConfig.Games;
+                    logMode = aiConfig.LogMode;
+                    Trace.WriteLine("AI vs AI setup: CPU 0 AI=" + p1AI + ", CPU 1 AI=" + p2AI
+                        + ", Games=" + gamesInt + ", Log Mode=" + logMode + "\n");
+                }
+            }
             //Initialise pigs, player names.
             pigInitialiser();
 
@@ -118,6 +134,10 @@ namespace PassThePigsConsole
                             else if (p1AI == 2)
                             {
                                 roll = AIDecisionTree.rollAggressive();
+                            }
+                            else if (p1AI == 3)
+                            {
+                                roll = AIDecisionTree.rollDecisionExpert();
                             }
                             else
                             {
@@ -228,6 +248,10 @@ namespace PassThePigsConsole
                         else if (p2AI == 2)
                         {
                             roll = AIDecisionTree.rollAggressive();
+                        }
+                        else if (p2AI == 3)
+                        {
+                            roll = AIDecisionTree.rollDecisionExpert();
                         }
                         else
                         {

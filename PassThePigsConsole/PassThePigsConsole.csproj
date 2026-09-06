@@ -99,6 +99,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DecisionTrees.cs" />
+    <Compile Include="GameModeSelector.cs" />
     <Compile Include="INIFile.cs" />
     <Compile Include="Player.cs" />
     <Compile Include="Program.cs" />

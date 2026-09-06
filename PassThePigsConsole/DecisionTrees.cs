@@ -39,6 +39,7 @@ namespace PassThePigsConsole
             AIDecisionTree basic = new AIDecisionTree("basic", 0);
             AIDecisionTree random = new AIDecisionTree("random", 1);
             AIDecisionTree aggressive = new AIDecisionTree("aggressive", 2);
+            AIDecisionTree expert = new AIDecisionTree("expert", 3);
         }
 
         //Runs the chosen AI Decision Tree
@@ -248,6 +249,76 @@ namespace PassThePigsConsole
                 Trace.WriteLine(Program.current.name + ": Rolling because I'm aggressive\n");
                 return true;
             }
+        }
+
+        //'Expert' method; a direct implementation of the "improved expert system"
+        //Gorman sketches at the end of 'Analytics, Pedagogy and the Pass the Pigs Game'.
+        //
+        //Marginal analysis from the paper: each roll has a ~21% chance of a pig out and a
+        //constant expected benefit of ~4.7 points, so rolling is worth it while
+        //        0.21 * turnScore  <  4.7      ->   turnScore < ~22.4
+        //hence the classic "roll at 22, stop at 23" rule. That rule maximises the expected
+        //score of a turn but is NOT optimal for winning, because it never considers the
+        //opponent. This tree keeps 23 as the DEFAULT target and then slides that target
+        //up (chasing) or down (protecting a lead), with the endgame played purely on the
+        //probability of winning rather than expected value.
+        //
+        //BaseTarget/Chase/Coast/Behind/Ahead are the "X, Z, XX, ZZ" free parameters the
+        //paper says to tune with Monte Carlo simulation - the values here are reasonable
+        //starting points, not proven optima.
+        public static Boolean rollDecisionExpert()
+        {
+            const int WinScore = 100;               // total needed to win
+            const int BaseTarget = 23;              // Gorman's expected-value break-even
+            const int Behind = 20;                  // opp ahead by more than this -> chase
+            const int Ahead = 20;                   // opp behind by more than this -> coast
+            const int ChaseTarget = 35;             // bigger turns to claw back a deficit
+            const int CoastTarget = 16;             // smaller, safer turns to nurse a lead
+            const int EndgameZone = WinScore - BaseTarget;   // 77: ~one good turn from home
+
+            int myTotal = Program.current.totalScore;
+            int myTurn = Program.current.turnScore;
+            int oppTotal = (Program.current == Program.player1)
+                                ? Program.player2.totalScore
+                                : Program.player1.totalScore;
+
+            //First roll of the turn: nothing banked, nothing to lose - always roll.
+            if (myTurn < 1)
+                return expertTrace(true, "first roll of the turn, nothing at stake");
+
+            //--- Endgame: play the probability of winning, not the expected value ---
+
+            //This turn already wins the game - stop and take it.
+            if (myTotal + myTurn >= WinScore)
+                return expertTrace(false, "this turn wins the game");
+
+            //Close enough that a normal turn carries us home - just roll until it does.
+            if (myTotal >= EndgameZone)
+                return expertTrace(true, "within one turn of victory, rolling for the win");
+
+            //Opponent is poised to win next turn and we can't win this turn:
+            //a safe 23 loses the game, so gamble for the win now.
+            if (oppTotal >= EndgameZone)
+                return expertTrace(true, "opponent is one turn from winning, gambling for the win");
+
+            //--- Mid-game: slide the turn target by relative position ---
+
+            int margin = oppTotal - myTotal;
+            int target = BaseTarget;
+            if (margin > Behind) target = ChaseTarget;        // behind -> accept variance
+            else if (margin < -Ahead) target = CoastTarget;   // ahead  -> bank sooner
+
+            return myTurn >= target
+                ? expertTrace(false, "reached this turn's target of " + target + " (margin " + margin + ")")
+                : expertTrace(true, "turn score " + myTurn + " below target " + target + " (margin " + margin + ")");
+        }
+
+        //Small logging helper so rollDecisionExpert doesn't repeat the logMode / Trace.WriteLine dance.
+        private static Boolean expertTrace(Boolean roll, string reason)
+        {
+            if (Program.logMode)
+                Trace.WriteLine(Program.current.name + (roll ? ": Rolling - " : ": Not rolling - ") + reason + "\n");
+            return roll;
         }
     }
 }
