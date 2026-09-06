@@ -48,6 +48,9 @@ namespace PassThePigsConsole
         //Signal Game Over
         static Boolean gameOver = false;
 
+        //Sprite window shown during Human vs AI (null in AI vs AI).
+        static PigRollWindow pigWindow;
+
         //Various counters; Number of rolls, turns and wins.
         static int p1RollCount, p2RollCount, turnCount, p1Wins = 0, p2Wins = 0;
 
@@ -101,6 +104,13 @@ namespace PassThePigsConsole
             }
             //Initialise pigs, player names.
             pigInitialiser();
+
+            //Open the pig sprite window for Human vs AI.
+            if (human)
+            {
+                pigWindow = new PigRollWindow();
+                pigWindow.Open();
+            }
 
             #region gameLogic
             //Game logic begin.
@@ -325,6 +335,14 @@ namespace PassThePigsConsole
             Trace.WriteLine("Wins for " + player1.name + ": " + p1Wins + "\n");
             Trace.WriteLine("Wins for " + player2.name + ": " + p2Wins + "\n");
             Trace.WriteLine("-----Ending Session at " + DateTime.Now+ "-----\n");
+
+            //Keep the sprite window up until the human dismisses it.
+            if (pigWindow != null)
+            {
+                Trace.WriteLine("Press Enter to close.\n");
+                Console.ReadLine();
+                pigWindow.Close();
+            }
             #endregion
         }
 
@@ -402,6 +420,10 @@ namespace PassThePigsConsole
             int x = Score(oneString, twoString);
             if (logMode == true)
                 Trace.WriteLine(current.name + ": Rolled " + oneString + " & " + twoString + ", resulting in a score of: " + x+ "\n");
+
+            //Show the roll in the sprite window (Human vs AI only).
+            if (pigWindow != null)
+                pigWindow.ShowRoll(current.name, oneString, twoString, x);
 
             //Pig Out, turn score to 0
             if (x == 0)
