@@ -51,6 +51,9 @@ namespace PassThePigsConsole
         //Sprite window shown during Human vs AI (null in AI vs AI).
         static PigRollWindow pigWindow;
 
+        //Pause between an AI's rolls when a human is watching, so they are visible.
+        const int aiRollDelayMs = 750;
+
         //Various counters; Number of rolls, turns and wins.
         static int p1RollCount, p2RollCount, turnCount, p1Wins = 0, p2Wins = 0;
 
@@ -105,11 +108,12 @@ namespace PassThePigsConsole
             //Initialise pigs, player names.
             pigInitialiser();
 
-            //Open the pig sprite window for Human vs AI.
+            //Open the game window for Human vs AI. It becomes the primary interface:
+            //the human rolls/passes with its buttons and the console just logs.
             if (human)
             {
                 pigWindow = new PigRollWindow();
-                pigWindow.Open();
+                pigWindow.Open(() => turnCount, player1, player2, () => current == player1);
             }
 
             #region gameLogic
@@ -200,23 +204,13 @@ namespace PassThePigsConsole
                         }
                         #endregion
                     }
-                    #region human                           
+                    #region human
                     else
                     {
                         Trace.WriteLine("\n");
                         while (current == player1) {
-                            Boolean roll;
-                            //roll = rollDecisionBasic();
-                            Trace.WriteLine("Total Score = " + player1.totalScore);
-                            Trace.WriteLine("Turn Score = " + player1.turnScore);
-                            Trace.WriteLine("'1' to Roll, anything else to Pass the Pigs\n");
-                            string line = Console.ReadLine();
-                            if (line == "1")
-                            {
-                                roll = true;
-                            }
-                            else
-                                roll = false;
+                            //Roll / Pass comes from the game window's buttons.
+                            Boolean roll = pigWindow.GetHumanDecision();
                             //If we roll
                             if (roll)
                             {
@@ -256,6 +250,9 @@ namespace PassThePigsConsole
                     while (current == player2)
                     {
                         Trace.WriteLine("\n");
+                        //Slow the AI down so a watching human can see each roll.
+                        if (human)
+                            System.Threading.Thread.Sleep(aiRollDelayMs);
                         Boolean roll;
                         //roll = rollDecisionBasic();
 
@@ -336,12 +333,15 @@ namespace PassThePigsConsole
             Trace.WriteLine("Wins for " + player2.name + ": " + p2Wins + "\n");
             Trace.WriteLine("-----Ending Session at " + DateTime.Now+ "-----\n");
 
-            //Keep the sprite window up until the human dismisses it.
+            //Show the result in the game window and wait for the human to close it.
             if (pigWindow != null)
             {
-                Trace.WriteLine("Press Enter to close.\n");
-                Console.ReadLine();
-                pigWindow.Close();
+                string winner = p1Wins > p2Wins ? player1.name
+                              : p2Wins > p1Wins ? player2.name
+                              : "Nobody";
+                pigWindow.ShowGameOver(winner + " wins!   ("
+                    + player1.name + " " + p1Wins + " - " + p2Wins + " " + player2.name + ")");
+                pigWindow.WaitForClose();
             }
             #endregion
         }
