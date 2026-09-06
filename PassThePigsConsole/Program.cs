@@ -380,7 +380,7 @@ namespace PassThePigsConsole
         private static void iniLoader()
         {
             Trace.WriteLine("---INI DATA BEGIN:---\n");
-            if (IO.File.Exists(appPath + "/Settings.ini\n"))
+            if (IO.File.Exists(appPath + "/Settings.ini"))
             {
                 Trace.WriteLine("INI File Found\n");
                 games = INIFile.ReadValue("Settings", "Games", appPath + "/Settings.ini");
