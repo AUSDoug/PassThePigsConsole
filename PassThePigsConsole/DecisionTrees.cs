@@ -17,6 +17,26 @@ using System.Diagnostics;
 
 namespace PassThePigsConsole
 {
+    //Tunable knob for rollDecisionExpert: the accumulated-turn-points target at which
+    //to stop rolling. Gorman's expected-value analysis puts the break-even at ~23
+    //("0.21 * turnScore < 4.7"). Held as data so variants can be benchmarked without
+    //recompiling (see Benchmark.cs).
+    internal sealed class ExpertParams
+    {
+        public int BaseTarget = 23;
+
+        //Accepts "23"; a legacy "23,20,20,35,16" form is tolerated (extra fields ignored).
+        public static ExpertParams Parse(string spec)
+        {
+            return new ExpertParams { BaseTarget = int.Parse(spec.Split(',')[0]) };
+        }
+
+        public override string ToString()
+        {
+            return BaseTarget.ToString();
+        }
+    }
+
     class AIDecisionTree
     {
         //Human readable, descriptive string
@@ -40,6 +60,7 @@ namespace PassThePigsConsole
             AIDecisionTree random = new AIDecisionTree("random", 1);
             AIDecisionTree aggressive = new AIDecisionTree("aggressive", 2);
             AIDecisionTree expert = new AIDecisionTree("expert", 3);
+            AIDecisionTree ev = new AIDecisionTree("ev", 4);
         }
 
         //Runs the chosen AI Decision Tree
@@ -251,30 +272,37 @@ namespace PassThePigsConsole
             }
         }
 
-        //'Expert' method; a direct implementation of the "improved expert system"
-        //Gorman sketches at the end of 'Analytics, Pedagogy and the Pass the Pigs Game'.
+        //'Expert' method; Gorman's "stop at 23" expected-value rule plus the endgame
+        //awareness he sketches at the end of 'Analytics, Pedagogy and the Pass the Pigs Game'.
         //
         //Marginal analysis from the paper: each roll has a ~21% chance of a pig out and a
         //constant expected benefit of ~4.7 points, so rolling is worth it while
         //        0.21 * turnScore  <  4.7      ->   turnScore < ~22.4
-        //hence the classic "roll at 22, stop at 23" rule. That rule maximises the expected
-        //score of a turn but is NOT optimal for winning, because it never considers the
-        //opponent. This tree keeps 23 as the DEFAULT target and then slides that target
-        //up (chasing) or down (protecting a lead), with the endgame played purely on the
-        //probability of winning rather than expected value.
+        //hence "roll at 22, stop at 23". That maximises the expected score of a turn but is
+        //not by itself optimal for WINNING, so near the end of the game this tree switches
+        //to playing the probability of winning: it presses on for the win when victory is in
+        //range, and gambles for the win when the opponent is about to close the game out.
         //
-        //BaseTarget/Chase/Coast/Behind/Ahead are the "X, Z, XX, ZZ" free parameters the
-        //paper says to tune with Monte Carlo simulation - the values here are reasonable
-        //starting points, not proven optima.
+        //(An earlier version also slid the target up/down by relative score - "chase when
+        //behind, coast when ahead" - but benchmarking showed that layer was a net liability
+        //against the other rulesets, so it was removed. The endgame overrides carried the
+        //whole benefit. See tools/hillclimb.py and Benchmark.cs.)
+        //
+        //Per-CPU parameterisation. Normal play leaves both at the default; the benchmark
+        //harness sets them so two BaseTarget values can play each other.
+        public static ExpertParams ExpertConfigP1 = new ExpertParams();
+        public static ExpertParams ExpertConfigP2 = new ExpertParams();
+
         public static Boolean rollDecisionExpert()
         {
-            const int WinScore = 100;               // total needed to win
-            const int BaseTarget = 23;              // Gorman's expected-value break-even
-            const int Behind = 20;                  // opp ahead by more than this -> chase
-            const int Ahead = 20;                   // opp behind by more than this -> coast
-            const int ChaseTarget = 35;             // bigger turns to claw back a deficit
-            const int CoastTarget = 16;             // smaller, safer turns to nurse a lead
-            const int EndgameZone = WinScore - BaseTarget;   // 77: ~one good turn from home
+            ExpertParams p = (Program.current == Program.player1) ? ExpertConfigP1 : ExpertConfigP2;
+            return rollDecisionExpert(p);
+        }
+
+        public static Boolean rollDecisionExpert(ExpertParams p)
+        {
+            const int WinScore = 100;                          // total needed to win
+            int endgameZone = WinScore - p.BaseTarget;         // ~one good turn from home
 
             int myTotal = Program.current.totalScore;
             int myTurn = Program.current.turnScore;
@@ -293,28 +321,56 @@ namespace PassThePigsConsole
                 return expertTrace(false, "this turn wins the game");
 
             //Close enough that a normal turn carries us home - just roll until it does.
-            if (myTotal >= EndgameZone)
+            if (myTotal >= endgameZone)
                 return expertTrace(true, "within one turn of victory, rolling for the win");
 
             //Opponent is poised to win next turn and we can't win this turn:
-            //a safe 23 loses the game, so gamble for the win now.
-            if (oppTotal >= EndgameZone)
+            //a safe target loses the game, so gamble for the win now.
+            if (oppTotal >= endgameZone)
                 return expertTrace(true, "opponent is one turn from winning, gambling for the win");
 
-            //--- Mid-game: slide the turn target by relative position ---
-
-            int margin = oppTotal - myTotal;
-            int target = BaseTarget;
-            if (margin > Behind) target = ChaseTarget;        // behind -> accept variance
-            else if (margin < -Ahead) target = CoastTarget;   // ahead  -> bank sooner
-
-            return myTurn >= target
-                ? expertTrace(false, "reached this turn's target of " + target + " (margin " + margin + ")")
-                : expertTrace(true, "turn score " + myTurn + " below target " + target + " (margin " + margin + ")");
+            //--- Otherwise: Gorman's expected-value stopping rule. ---
+            return myTurn >= p.BaseTarget
+                ? expertTrace(false, "reached the stop-at-" + p.BaseTarget + " threshold")
+                : expertTrace(true, "turn score " + myTurn + " below " + p.BaseTarget);
         }
 
         //Small logging helper so rollDecisionExpert doesn't repeat the logMode / Trace.WriteLine dance.
         private static Boolean expertTrace(Boolean roll, string reason)
+        {
+            if (Program.logMode)
+                Trace.WriteLine(Program.current.name + (roll ? ": Rolling - " : ": Not rolling - ") + reason + "\n");
+            return roll;
+        }
+
+        //'EV' method; the pure expected-value heuristic from Gorman's paper, with nothing
+        //bolted on. Each roll risks a ~21% pig out for a constant ~4.7 expected points, so
+        //rolling is worth it while 0.21 * turnScore < 4.7, i.e. below ~23 accumulated points.
+        //This tree ignores the opponent entirely - it is the "stop at 23" baseline that the
+        //'expert' tree builds on. In benchmarking it is actually the strongest of the trees
+        //against the other bots, because defensive play only pays against an equal opponent.
+        public static Boolean rollDecisionEV()
+        {
+            const int Target = 23;      // 0.21 * 23 > 4.7  ->  stop
+            const int WinScore = 100;
+
+            int myTotal = Program.current.totalScore;
+            int myTurn = Program.current.turnScore;
+
+            //Free roll: nothing banked this turn, nothing to lose.
+            if (myTurn < 1)
+                return evTrace(true, "first roll of the turn, nothing at stake");
+
+            //Already enough to win - take it.
+            if (myTotal + myTurn >= WinScore)
+                return evTrace(false, "this turn wins the game");
+
+            return myTurn >= Target
+                ? evTrace(false, "reached the stop-at-" + Target + " threshold")
+                : evTrace(true, "turn score " + myTurn + " still below " + Target);
+        }
+
+        private static Boolean evTrace(Boolean roll, string reason)
         {
             if (Program.logMode)
                 Trace.WriteLine(Program.current.name + (roll ? ": Rolling - " : ": Not rolling - ") + reason + "\n");

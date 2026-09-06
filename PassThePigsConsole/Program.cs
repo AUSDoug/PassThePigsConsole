@@ -65,6 +65,15 @@ namespace PassThePigsConsole
         [STAThread]
         static void Main(string[] args)
         {
+            //Headless benchmark mode for tuning the AI, e.g.:
+            //  PassThePigsConsole.exe bench games=20000 seed=1 p1=expert:23,20,20,35,16 p2=expert:24,20,20,35,16
+            //Bypasses the WPF pop-ups and prints a single machine-readable result line.
+            if (args.Length > 0 && args[0] == "bench")
+            {
+                Benchmark.Run(args);
+                return;
+            }
+
             //Prompt the user to select the game mode via pop-up window.
             human = GameModeSelector.PromptForHumanMode();
             if (human)
@@ -138,6 +147,10 @@ namespace PassThePigsConsole
                             else if (p1AI == 3)
                             {
                                 roll = AIDecisionTree.rollDecisionExpert();
+                            }
+                            else if (p1AI == 4)
+                            {
+                                roll = AIDecisionTree.rollDecisionEV();
                             }
                             else
                             {
@@ -252,6 +265,10 @@ namespace PassThePigsConsole
                         else if (p2AI == 3)
                         {
                             roll = AIDecisionTree.rollDecisionExpert();
+                        }
+                        else if (p2AI == 4)
+                        {
+                            roll = AIDecisionTree.rollDecisionEV();
                         }
                         else
                         {
@@ -380,8 +397,9 @@ namespace PassThePigsConsole
         //Rolls pigs, keeps track of turn score
         private static void rollControl()
         {
-            int x;
-            x = roller();
+            oneString = pigOne.NextWithReplacement();
+            twoString = pigTwo.NextWithReplacement();
+            int x = Score(oneString, twoString);
             if (logMode == true)
                 Trace.WriteLine(current.name + ": Rolled " + oneString + " & " + twoString + ", resulting in a score of: " + x+ "\n");
 
@@ -406,13 +424,10 @@ namespace PassThePigsConsole
         //'New' methods; "What are the odds on my roll improving my position; how much; is it worth it?"
 
 
-        //Roll method
-        private static int roller()
+        //Given two pig positions, returns the score for that roll (0 = pig out).
+        //Order-sensitive, matching the physical game's scoring table.
+        internal static int Score(string oneString, string twoString)
         {
-            //Get two pigs
-            oneString = pigOne.NextWithReplacement();
-            twoString = pigTwo.NextWithReplacement();
-
             //Here follow the various combinations of pig, returning the appropriate score as an Int.
             if (((oneString.Equals("Side (No Dot)"))
                 && (twoString.Equals("Side (Dot)")))

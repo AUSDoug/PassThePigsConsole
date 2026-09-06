@@ -22,7 +22,7 @@ namespace PassThePigsConsole
     internal static class GameModeSelector
     {
         //The AI rulesets, in id order (index == the id used by Program / the .ini).
-        private static readonly string[] AiRulesets = { "Basic", "Random", "Aggressive", "Expert" };
+        private static readonly string[] AiRulesets = { "Basic", "Random", "Aggressive", "Expert", "EV (stop at 23)" };
 
         //Displays a pop-up window with two buttons.
         //Returns true if 'Human vs AI' was selected, false if 'AI vs AI' was selected.
