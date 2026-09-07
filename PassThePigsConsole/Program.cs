@@ -3,7 +3,8 @@
 using IO = System.IO;
 //BlueRaja's Weighted Randomizer package: https://github.com/BlueRaja/Weighted-Item-Randomizer-for-C-Sharp
 using Weighted_Randomizer;
-using System.Diagnostics;
+//Serilog: see GameLog.cs for the setup.
+using Serilog;
 
 
 #region Info
@@ -36,10 +37,8 @@ namespace PassThePigsConsole
         //True if human is playing.
         static Boolean human;
 
-        //Governs which decision making process is used by the AI
-        //String for describing the logic used
+        //Governs which decision making process is used by the AI (ruleset id per CPU).
         static int p1AI, p2AI;
-        static string aiDesc;
 
         //Log mode - 0 for basic, 1 for full.
         //Basic keeps track of scores and turns. Full does this, and also logs the rule by which the CPU decided to roll or not.
@@ -82,12 +81,12 @@ namespace PassThePigsConsole
 
             //Prompt the user to select the game mode via pop-up window.
             human = GameModeSelector.PromptForHumanMode();
-            if (human)
-            {
-                Trace.WriteLine("Human Mode detected");
-            }
-            //Setup logging of the console
-            consoleLogger();         
+
+            //Set up logging (console + rolling files under <exe>/logs).
+            GameLog.Configure(IO.Path.Combine(AppContext.BaseDirectory, "logs"));
+            Log.Information("Session started {Time:u}", DateTime.Now);
+            Log.Information(human ? "Mode: Human vs AI" : "Mode: AI vs AI");
+
             //Run the .ini loader
             iniLoader();
             //If AI vs AI, let the user configure the match via a second pop-up.
@@ -101,10 +100,13 @@ namespace PassThePigsConsole
                     p2AI = aiConfig.Player2AI;
                     gamesInt = aiConfig.Games;
                     logMode = aiConfig.LogMode;
-                    Trace.WriteLine("AI vs AI setup: CPU 0 AI=" + p1AI + ", CPU 1 AI=" + p2AI
-                        + ", Games=" + gamesInt + ", Log Mode=" + logMode + "\n");
+                    Log.Information("AI vs AI setup — CPU0 AI={Cpu0}, CPU1 AI={Cpu1}, games={Games}, verbose={Verbose}",
+                        p1AI, p2AI, gamesInt, logMode);
                 }
             }
+            //Apply the chosen verbosity now that Log Mode is known.
+            GameLog.SetVerbose(logMode);
+
             //Initialise pigs, player names.
             pigInitialiser();
 
@@ -123,26 +125,24 @@ namespace PassThePigsConsole
             {
                 //Initialise count to 0
                 turnCount = 0;
-                Trace.WriteLine("===Game Start===\n");
+                Log.Information("=== Game start ===");
                 //While the game is running.
                 while (!gameOver)
                 {
                     //Increment turn count
                     turnCount++;
                     //Display game info
-                    Trace.WriteLine("       ##### Beginning Turn " + turnCount + " #####\n");
-                    Trace.WriteLine("##" + player1.name + ": Total Score is " + player1.totalScore + " after " + p1RollCount + " rolls ##\n");
-                    Trace.WriteLine("##" + player2.name + ": Total Score is " + player2.totalScore + " after " + p2RollCount + " rolls ##\n");
+                    Log.Information("--- Turn {Turn} --- {P1} {P1Score} ({P1Rolls} rolls), {P2} {P2Score} ({P2Rolls} rolls)",
+                        turnCount, player1.name, player1.totalScore, p1RollCount,
+                        player2.name, player2.totalScore, p2RollCount);
 
                     //While CPU0 is in control
                     #region CPU0
                     if (!human)
                     {
-                        Trace.WriteLine("\n");
                         while (current == player1)
                         {
                             Boolean roll;
-                            //roll = rollDecisionBasic();
 
                             //Decide to roll or not.
                             if (p1AI == 0)
@@ -175,15 +175,12 @@ namespace PassThePigsConsole
                             {
                                 //Increment roll count
                                 p1RollCount++;
-                                if (logMode == true)
-                                    Trace.WriteLine(current.name + ": CPU 0 is Rolling\n");
-                                //Roll
                                 rollControl();
                             }
                             //If they're not rolling
                             else
                             {
-                                Trace.WriteLine(current.name + " has passed the pigs\n");
+                                Log.Information("{Player} holds on {TurnScore}", current.name, current.turnScore);
                                 //Pass The Pigs
                                 turnEnd();
 
@@ -195,7 +192,7 @@ namespace PassThePigsConsole
                                 else
                                 {
                                     gameOver = true;
-                                    Trace.WriteLine("Game Over:" + current.name + " has won!\n");
+                                    Log.Information("Game over — {Winner} wins", current.name);
                                     p1Wins++;
                                     break;
                                 }
@@ -207,7 +204,6 @@ namespace PassThePigsConsole
                     #region human
                     else
                     {
-                        Trace.WriteLine("\n");
                         while (current == player1) {
                             //Roll / Pass comes from the game window's buttons.
                             Boolean roll = pigWindow.GetHumanDecision();
@@ -216,15 +212,12 @@ namespace PassThePigsConsole
                             {
                                 //Increment roll count
                                 p1RollCount++;
-                                if (logMode == true)
-                                    Trace.WriteLine(current.name + ": is Rolling\n");
-                                //Roll
                                 rollControl();
                             }
                             //If they're not rolling
                             else
                             {
-                                Trace.WriteLine(current.name + " has passed the pigs\n");
+                                Log.Information("{Player} holds on {TurnScore}", current.name, current.turnScore);
                                 //Pass The Pigs
                                 turnEnd();
 
@@ -236,7 +229,7 @@ namespace PassThePigsConsole
                                 else
                                 {
                                     gameOver = true;
-                                    Trace.WriteLine("Game Over:" + current.name + " has won!\n");
+                                    Log.Information("Game over — {Winner} wins", current.name);
                                     p1Wins++;
                                     break;
                                 }
@@ -249,12 +242,10 @@ namespace PassThePigsConsole
                     //While player is in control
                     while (current == player2)
                     {
-                        Trace.WriteLine("\n");
                         //Slow the AI down so a watching human can see each roll.
                         if (human)
                             System.Threading.Thread.Sleep(aiRollDelayMs);
                         Boolean roll;
-                        //roll = rollDecisionBasic();
 
                         //Decide to roll or not.
                         if (p2AI == 0)
@@ -286,15 +277,12 @@ namespace PassThePigsConsole
                         {
                             //Increment roll count
                             p2RollCount++;
-                            if (logMode == true)
-                                Trace.WriteLine(current.name + ": CPU 0 is Rolling\n");
-                            //Roll
                             rollControl();
                         }
                         //If they're not rolling
                         else
                         {
-                            Trace.WriteLine(current.name + " has passed the pigs\n");
+                            Log.Information("{Player} holds on {TurnScore}", current.name, current.turnScore);
                             //Pass The Pigs
                             turnEnd();
 
@@ -306,7 +294,7 @@ namespace PassThePigsConsole
                             else
                             {
                                 gameOver = true;
-                                Trace.WriteLine("Game Over:" + current.name + " has won!\n");
+                                Log.Information("Game over — {Winner} wins", current.name);
                                 p2Wins++;
                                 break;
                             }
@@ -315,23 +303,18 @@ namespace PassThePigsConsole
                     }
                     #endregion
                 }
-                //Print summary of game once it is over
-                Trace.WriteLine("------ Game Summary ------\n");
-                Trace.WriteLine("Turns Started: " + turnCount + "\n");
-                Trace.WriteLine(player1.name + " Score " + player1.totalScore + "\n");
-                Trace.WriteLine(player2.name + " Score " + player2.totalScore + "\n");
-                Trace.WriteLine(player1.name + " Rolls " + p1RollCount + "\n");
-                Trace.WriteLine(player2.name + " Rolls " + p2RollCount + "\n");
+                //Summary of the game once it is over
+                Log.Information("Game summary — {Turns} turns; {P1} {P1Score} ({P1Rolls} rolls), {P2} {P2Score} ({P2Rolls} rolls)",
+                    turnCount, player1.name, player1.totalScore, p1RollCount,
+                    player2.name, player2.totalScore, p2RollCount);
                 //Number of games remaining
                 gamesInt = gamesInt - 1;
                 //Cleanup
                 cleaner();
             }
             //Once all games have been played
-            Trace.WriteLine("------ Session Summary ------\n");
-            Trace.WriteLine("Wins for " + player1.name + ": " + p1Wins + "\n");
-            Trace.WriteLine("Wins for " + player2.name + ": " + p2Wins + "\n");
-            Trace.WriteLine("-----Ending Session at " + DateTime.Now+ "-----\n");
+            Log.Information("Session complete — {P1} {P1Wins}, {P2} {P2Wins}",
+                player1.name, p1Wins, player2.name, p2Wins);
 
             //Show the result in the game window and wait for the human to close it.
             if (pigWindow != null)
@@ -343,6 +326,9 @@ namespace PassThePigsConsole
                     + player1.name + " " + p1Wins + " - " + p2Wins + " " + player2.name + ")");
                 pigWindow.WaitForClose();
             }
+
+            Log.Information("Session ended {Time:u}", DateTime.Now);
+            GameLog.Shutdown();
             #endregion
         }
 
@@ -379,36 +365,30 @@ namespace PassThePigsConsole
         //Method to check for - and read from - the settings.ini file
         private static void iniLoader()
         {
-            Trace.WriteLine("---INI DATA BEGIN:---\n");
-            if (IO.File.Exists(appPath + "/Settings.ini"))
+            string iniPath = appPath + "/Settings.ini";
+            if (IO.File.Exists(iniPath))
             {
-                Trace.WriteLine("INI File Found\n");
-                games = INIFile.ReadValue("Settings", "Games", appPath + "/Settings.ini");
-                Trace.WriteLine("Number of games read as " + games + "\n");
+                Log.Debug("Reading {IniPath}", iniPath);
+                games = INIFile.ReadValue("Settings", "Games", iniPath);
                 int.TryParse(games, out gamesInt);
-                Trace.WriteLine("Number of games initialised to " + gamesInt+"\n");
-                int.TryParse(INIFile.ReadValue("Settings", "CPU 0 AI", appPath + "/Settings.ini"), out p1AI);
-                Trace.WriteLine("CPU 0 AI initialised to " + p1AI + "\n");
-                int.TryParse(INIFile.ReadValue("Settings", "CPU 1 AI", appPath + "/Settings.ini"), out p2AI);
-                Trace.WriteLine("CPU 1 AI initialised to " + p2AI + "\n");
-                bool.TryParse(INIFile.ReadValue("Settings", "Log Mode", appPath + "/Settings.ini"), out logMode);
-                Trace.WriteLine("Log Mode initialised to " + logMode+ "\n");
+                int.TryParse(INIFile.ReadValue("Settings", "CPU 0 AI", iniPath), out p1AI);
+                int.TryParse(INIFile.ReadValue("Settings", "CPU 1 AI", iniPath), out p2AI);
+                bool.TryParse(INIFile.ReadValue("Settings", "Log Mode", iniPath), out logMode);
             }
             else
             {
-                Trace.WriteLine("No INI File Found\n");
-                INIFile.WriteValue("Settings", "Games", "1", appPath + "/Settings.ini");
-                INIFile.WriteValue("Settings", "CPU 0 AI", "0", appPath + "/Settings.ini");
-                INIFile.WriteValue("Settings", "CPU 1 AI", "0", appPath + "/Settings.ini");
-                INIFile.WriteValue("Settings", "Log Mode", "0", appPath + "/Settings.ini");
+                Log.Debug("No Settings.ini found; writing defaults to {IniPath}", iniPath);
+                INIFile.WriteValue("Settings", "Games", "1", iniPath);
+                INIFile.WriteValue("Settings", "CPU 0 AI", "0", iniPath);
+                INIFile.WriteValue("Settings", "CPU 1 AI", "0", iniPath);
+                INIFile.WriteValue("Settings", "Log Mode", "0", iniPath);
                 gamesInt = 1;
                 p1AI = 0;
                 p2AI = 0;
                 logMode = false;
-                Trace.WriteLine("Options set to default values\n");
-
             }
-            Trace.WriteLine("---INI DATA END---\n");
+            Log.Information("Settings — games={Games}, CPU0 AI={Cpu0}, CPU1 AI={Cpu1}, verbose={Verbose}",
+                gamesInt, p1AI, p2AI, logMode);
         }
 
 
@@ -418,8 +398,7 @@ namespace PassThePigsConsole
             oneString = pigOne.NextWithReplacement();
             twoString = pigTwo.NextWithReplacement();
             int x = Score(oneString, twoString);
-            if (logMode == true)
-                Trace.WriteLine(current.name + ": Rolled " + oneString + " & " + twoString + ", resulting in a score of: " + x+ "\n");
+            Log.Debug("{Player} rolls {Pig1} + {Pig2} = {Score}", current.name, oneString, twoString, x);
 
             //Show the roll in the sprite window (Human vs AI only).
             if (pigWindow != null)
@@ -428,7 +407,7 @@ namespace PassThePigsConsole
             //Pig Out, turn score to 0
             if (x == 0)
             {
-                Trace.WriteLine(current.name + ": Pig Out!\n");
+                Log.Information("{Player} pigs out", current.name);
                 current.turnScore = 0;
                 turnEnd();
             }
@@ -841,25 +820,6 @@ namespace PassThePigsConsole
         internal static Boolean isOdd(int x)
         {
             return x % 2 != 0;
-        }
-
-        private static void consoleLogger()
-        {
-                Trace.Listeners.Clear();
-
-                TextWriterTraceListener twtl = new TextWriterTraceListener(appPath + "/PassThePigs.log", AppDomain.CurrentDomain.FriendlyName);
-                twtl.Name = "TextLogger";
-                twtl.TraceOutputOptions = TraceOptions.ThreadId | TraceOptions.DateTime;
-
-                ConsoleTraceListener ctl = new ConsoleTraceListener(false);
-                ctl.TraceOutputOptions = TraceOptions.DateTime;
-
-                Trace.Listeners.Add(twtl);
-                Trace.Listeners.Add(ctl);
-                Trace.AutoFlush = true;
-
-            Trace.WriteLine("-----Starting Session at " + DateTime.Now + "-----\n");
-
         }
     }
 }

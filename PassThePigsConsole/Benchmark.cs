@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 
 //File:   Benchmark.cs
 //Headless match runner used to tune the AI rulesets.
@@ -31,8 +30,7 @@ namespace PassThePigsConsole
 
         public static void Run(string[] args)
         {
-            //Silence the trees' Trace.WriteLine calls.
-            Trace.Listeners.Clear();
+            //No GameLog.Configure() here, so the trees' AI-channel logging is a no-op.
 
             int games = 20000;
             int seed = 1;

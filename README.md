@@ -2,8 +2,8 @@
 
 Program name: 	Pass the Pigs
 Author: 		Douglas Spangenberg
-Version: 		1.2
-Date: 			6th September 2026
+Version: 		1.3
+Date: 			7th September 2026
 Licenses: 		GNU General Public License v3.
 
 What is it:
@@ -81,9 +81,25 @@ first-mover advantage is split evenly.
 `tools/hillclimb.py` uses this to sweep Expert's stop threshold head-to-head
 against a champion and report the win rate at each value.
 
+Logging:
+---------------------------
+Logging uses Serilog. Two rolling files are written to a `logs/` folder next to
+the executable, plus the console:
+
+| output | contents |
+|--------|----------|
+| console + `logs/passthepigs-*.log` | game flow (turns, scores, rolls, results) |
+| `logs/ai-commentary-*.log`         | every AI decision and the reason for it, always captured |
+
+`Log Mode` / the verbose checkbox raises the console + main log to include the
+roll-by-roll detail and echo the AI commentary; the AI-commentary file is written
+regardless.
+
 Requirements:
 ---------------------------
  - .NET Framework 4.8
+ - NuGet packages (restored automatically on build): WeightedRandomizer, Serilog,
+   Serilog.Sinks.Console, Serilog.Sinks.File
 
 Settings.ini:
 ---------------------------
@@ -99,6 +115,11 @@ missing it is regenerated with default values on the next run.
 
 ChangeLog:
 ---------------------------
+7th September 2026 - 1.3 Update
+	- Logging moved from System.Diagnostics.Trace to Serilog: levels instead of the
+	  hand-rolled verbose flag, a separate "AI commentary" log, rolling files.
+	- Project converted to the SDK-style csproj / PackageReference (builds with
+	  `dotnet build`); fixed a stray "\n" that stopped Settings.ini being read.
 6th September 2026 - 1.2 Update
 	- Retargeted to .NET Framework 4.8; project "dev restart".
 	- New AI rulesets: 'Expert' (3) and 'EV' (4), derived from Gorman's paper.
