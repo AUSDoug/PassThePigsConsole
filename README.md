@@ -2,8 +2,8 @@
 
 Program name: 	Pass the Pigs
 Author: 		Douglas Spangenberg
-Version: 		1.3
-Date: 			7th September 2026
+Version: 		1.4
+Date: 			12th September 2026
 Licenses: 		GNU General Public License v3.
 
 What is it:
@@ -59,11 +59,16 @@ AI rulesets:
 - **Expert** — Gorman's marginal analysis: each roll risks a ~21% pig out for a
   constant ~4.7 expected points, so rolling is worth it while the accumulated turn
   score is below ~23. That rule maximises the *expected score* of a turn but not
-  the *chance of winning*, so near the end of the game Expert switches to playing
-  the probability of winning: it presses on for the win when victory is within a
-  turn, and gambles for the win when the opponent is one good turn away from 100.
-  (An earlier version also slid its target up/down by relative score; benchmarking
-  showed that hurt against the other rulesets, so it was removed.)
+  the *chance of winning*, so once either player is within reach of 100 (currently
+  ≤68 points needed - `ExpertParams.EndgameZone`) Expert switches to playing the
+  probability of winning instead: it presses on for the win, or gambles for it if
+  the *opponent* is the one in range. That threshold started out tied to the stop-
+  at-23 target (100-23=77, "one good turn away"); benchmarking found decoupling it
+  and opening the window earlier, to ~68, wins an extra ~0.7 percentage points in
+  self-play and against Basic/Aggressive - a bigger, more solid gain than tuning
+  the stop-at-23 target itself ever produced. (An earlier version also slid the
+  stop-at-23 target up/down by relative score; benchmarking showed that hurt
+  against the other rulesets, so it was removed.)
 
 - **EV** — The pure textbook heuristic: roll until the turn score reaches 23, then
   stop. It ignores the opponent completely and has no endgame logic. It is the
@@ -74,12 +79,14 @@ Headless benchmarking:
 ---------------------------
 `PassThePigsConsole.exe bench games=<n> seed=<n> p1=<spec> p2=<spec>` runs a match
 with no windows and prints a single result line to stdout. `<spec>` is
-`basic | random | aggressive | ev | expert`, or `expert:<n>` to set Expert's stop
-threshold (e.g. `expert:26`). The first turn alternates between the two sides so
-first-mover advantage is split evenly.
+`basic | random | aggressive | ev | expert`, or `expert:<BaseTarget>` /
+`expert:<BaseTarget>,<EndgameZone>` to override Expert's two thresholds (e.g.
+`expert:23,68`, the shipped default). The first turn alternates between the two
+sides so first-mover advantage is split evenly.
 
-`tools/hillclimb.py` uses this to sweep Expert's stop threshold head-to-head
-against a champion and report the win rate at each value.
+`tools/hillclimb.py` sweeps Expert's stop-at-23 threshold head-to-head against a
+champion. It doesn't cover EndgameZone (that sweep was done by hand when the
+knob was added) - worth extending if the AI gets revisited again.
 
 Logging:
 ---------------------------
@@ -115,6 +122,10 @@ missing it is regenerated with default values on the next run.
 
 ChangeLog:
 ---------------------------
+12th September 2026 - 1.4 Update
+	- Expert's endgame threshold decoupled from its stop-at-23 target and re-tuned by
+	  headless self-play (`ExpertParams.EndgameZone`, was 77, now 68) - about +0.7pp
+	  win rate in self-play and vs Basic/Aggressive. BaseTarget re-checked and still 23.
 7th September 2026 - 1.3 Update
 	- Logging moved from System.Diagnostics.Trace to Serilog: levels instead of the
 	  hand-rolled verbose flag, a separate "AI commentary" log, rolling files.

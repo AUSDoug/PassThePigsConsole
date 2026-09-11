@@ -17,15 +17,30 @@ namespace PassThePigsConsole
     {
         public int BaseTarget = 23;
 
-        //Accepts "23"; a legacy "23,20,20,35,16" form is tolerated (extra fields ignored).
+        //The "go for the win" / "gamble" threshold. Originally derived as 100-BaseTarget
+        //(=77); benchmarking found that coupling was suboptimal - decoupling it and
+        //sweeping independently found a real, ~0.7pp win-rate gain around 68, flat across
+        //roughly 58-74 and falling off outside that. BaseTarget re-checked against the new
+        //value and 23 is still best. See tools/hillclimb.py / memory for the sweep data.
+        public int EndgameZone = 68;
+
+        //Accepts "23" or "23,68" (BaseTarget,EndgameZone); a legacy "23,20,20,35,16" form
+        //is tolerated (fields beyond the second are ignored).
         public static ExpertParams Parse(string spec)
         {
-            return new ExpertParams { BaseTarget = int.Parse(spec.Split(',')[0]) };
+            string[] f = spec.Split(',');
+            ExpertParams p = new ExpertParams { BaseTarget = int.Parse(f[0]) };
+            if (f.Length > 1)
+            {
+                int endgameZone;
+                if (int.TryParse(f[1], out endgameZone)) p.EndgameZone = endgameZone;
+            }
+            return p;
         }
 
         public override string ToString()
         {
-            return BaseTarget.ToString();
+            return BaseTarget + "," + EndgameZone;
         }
     }
 
@@ -156,8 +171,11 @@ namespace PassThePigsConsole
         //        0.21 * turnScore  <  4.7      ->   turnScore < ~22.4
         //hence "roll at 22, stop at 23". That maximises the expected score of a turn but is
         //not by itself optimal for WINNING, so near the end of the game this tree switches
-        //to playing the probability of winning: it presses on for the win when victory is in
-        //range, and gambles for the win when the opponent is about to close the game out.
+        //to playing the probability of winning: once either player is within EndgameZone
+        //points of 100, it presses on for the win (or gambles for it, if the opponent is the
+        //one in range) instead of applying the stop-at-23 rule. That threshold was originally
+        //100-BaseTarget (=77, "one good turn away"); benchmarking found opening the window
+        //earlier, to ~68, wins ~0.7pp more often - see ExpertParams.EndgameZone.
         //
         //(An earlier version also slid the target up/down by relative score - "chase when
         //behind, coast when ahead" - but benchmarking showed that layer was a net liability
@@ -178,7 +196,7 @@ namespace PassThePigsConsole
         public static Boolean rollDecisionExpert(ExpertParams p)
         {
             const int WinScore = 100;                          // total needed to win
-            int endgameZone = WinScore - p.BaseTarget;         // ~one good turn from home
+            int endgameZone = p.EndgameZone;                   // independently tuned, see ExpertParams
 
             int myTotal = Program.current.totalScore;
             int myTurn = Program.current.turnScore;
