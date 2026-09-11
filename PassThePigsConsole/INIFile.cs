@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 
 //This .ini handling code comes courtesy of Smart Arab.
-//And, no, I'm not a racist; http://www.smart-arab.com/2013/05/using-ini-file-with-c/
+//http://www.smart-arab.com/2013/05/using-ini-file-with-c/
 //Apparently, ini files are 'outdated' and we're supposed to use 'application settings' and things.
 //What a load of crap; INI files are awesome.
 //This guy knows that.
